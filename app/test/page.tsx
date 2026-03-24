@@ -84,19 +84,23 @@ export default function TestPage() {
 
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => pollQueue(contactId, sentAt), 2000)
-    setTimeout(() => { if (pollRef.current) clearInterval(pollRef.current); setSending(false) }, 60000)
+    // Auto-reset after 90s max to avoid stuck state
+    setTimeout(() => {
+      if (pollRef.current) clearInterval(pollRef.current)
+      setSending(false)
+    }, 90000)
   }, [pollQueue])
 
   const handleSend = async () => {
-    if (!session || !input.trim() || sending) return
-    setSending(true)
+    if (!session || !input.trim()) return
     const text = input.trim()
     setInput('')
+    setSending(true)
     await sendMessage(text, session.contactId, session.name)
   }
 
   const handleStressTest = async () => {
-    if (!session || sending) return
+    if (!session) return
     setSending(true)
     for (const msg of ['Hola', 'Quiero info sobre rinoplastia', '¿Cuánto cuesta?']) {
       await sendMessage(msg, session.contactId, session.name)
@@ -185,7 +189,7 @@ export default function TestPage() {
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Escribe un mensaje..."
                 disabled={sending}
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
+                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
               />
               <button onClick={handleStressTest} disabled={sending}
                 title="Envía 3 mensajes rápido para probar la cola"
@@ -193,7 +197,8 @@ export default function TestPage() {
                 ⚡×3
               </button>
               <button onClick={handleSend} disabled={sending || !input.trim()}
-                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              >
                 Enviar
               </button>
             </div>
