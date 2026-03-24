@@ -50,8 +50,14 @@ export default function TestPage() {
 
   const pollQueue = useCallback(async (contactId: string, sentAt: number) => {
     const data = await refreshQueue(contactId)
+    // Only consider rows completed AFTER we sent (avoid showing stale responses)
+    const sentAtIso = new Date(sentAt - 1000).toISOString()
     const completed = data.find(r =>
-      r.status === 'completed' && r.ai_response && r.id !== lastProcessedRef.current
+      r.status === 'completed' &&
+      r.ai_response &&
+      r.processed_at &&
+      r.processed_at > sentAtIso &&
+      r.id !== lastProcessedRef.current
     )
     if (completed) {
       lastProcessedRef.current = completed.id
