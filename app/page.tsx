@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase, MessageQueue, Chat } from '@/lib/supabase'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -8,10 +8,18 @@ import {
 } from 'recharts'
 
 const STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+  pending:    'bg-yellow-100 text-yellow-800 border border-yellow-200',
   processing: 'bg-blue-100 text-blue-800 border border-blue-200',
-  completed: 'bg-green-100 text-green-800 border border-green-200',
-  failed: 'bg-red-100 text-red-800 border border-red-200',
+  completed:  'bg-green-100 text-green-800 border border-green-200',
+  failed:     'bg-red-100 text-red-800 border border-red-200',
+}
+
+type N8nExecution = {
+  id: number
+  status: string
+  startedAt: string
+  stoppedAt?: string
+  workflowId: string
 }
 
 function ConversationModal({ contactId, contactName, onClose }: { contactId: string; contactName: string; onClose: () => void }) {
@@ -70,30 +78,48 @@ export default function DashboardPage() {
   const [rows, setRows] = useState<MessageQueue[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<MessageQueue | null>(null)
+  const [errors, setErrors] = useState<N8nExecution[]>([])
+
+  // Filters
+  const [search, setSearch] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterDate, setFilterDate] = useState('')
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('message_queue')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200)
-    setRows(data || [])
+    setLoading(true)
+    const [{ data: queueData }, errorsData] = await Promise.all([
+      supabase.from('message_queue').select('*').order('created_at', { ascending: false }).limit(500),
+      fetch('https://n8n.daviddepablos.com/api/v1/executions?workflowId=H1DHC0NR1JrTgdTW&limit=50&status=error', {
+        headers: { 'X-N8N-API-KEY': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMGFmMmZiZC02Y2NkLTQ3MzctYThlZS05MTkwYjUzMmFjODYiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZWIzNDA2MDItNjFmNS00MjJkLTkxYWEtOWRjMTM3MjJjMDU5IiwiaWF0IjoxNzc0Mjc3OTk1fQ.glLOJqVm59WZb3uU0cnx_3OXKRT8yDzqDkdHjjpUPlo' }
+      }).then(r => r.ok ? r.json() : { data: [] }).catch(() => ({ data: [] }))
+    ])
+    setRows(queueData || [])
+    setErrors(errorsData?.data || [])
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
   const today = new Date().toISOString().split('T')[0]
-  const totalLeads = rows.filter(r => r.ai_response).length
-  const totalConversations = new Set(rows.map(r => r.contact_id)).size
+
+  // KPIs
+  const uniqueContacts = new Set(rows.map(r => r.contact_id)).size
+  const completedRows = rows.filter(r => r.status === 'completed')
   const todayMessages = rows.filter(r => r.created_at.startsWith(today)).length
-  const completedWithTime = rows.filter(r => r.status === 'completed' && r.processed_at)
+  const completedWithTime = completedRows.filter(r => r.processed_at)
   const avgResponseSec = completedWithTime.length > 0
-    ? Math.round(completedWithTime.reduce((acc, r) => {
-        return acc + (new Date(r.processed_at!).getTime() - new Date(r.created_at).getTime()) / 1000
-      }, 0) / completedWithTime.length)
+    ? Math.round(completedWithTime.reduce((acc, r) =>
+        acc + (new Date(r.processed_at!).getTime() - new Date(r.created_at).getTime()) / 1000, 0) / completedWithTime.length)
     : 0
 
+  const kpis = [
+    { label: 'Contactos Únicos', value: uniqueContacts, icon: '👥', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Mensajes Completados', value: completedRows.length, icon: '✅', color: 'text-green-600', bg: 'bg-green-50' },
+    { label: 'Mensajes Hoy', value: todayMessages, icon: '📨', color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Resp. Promedio', value: `${avgResponseSec}s`, icon: '⚡', color: 'text-orange-600', bg: 'bg-orange-50' },
+  ]
+
+  // Charts
   const hourlyData = Array.from({ length: 24 }, (_, i) => ({
     hour: `${i}h`,
     messages: rows.filter(r => new Date(r.created_at).getHours() === i && r.created_at.startsWith(today)).length
@@ -108,18 +134,27 @@ export default function DashboardPage() {
     }
   })
 
-  const kpis = [
-    { label: 'Total Leads', value: totalLeads, icon: '🎯', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Conversaciones', value: totalConversations, icon: '💬', color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Mensajes Hoy', value: todayMessages, icon: '📨', color: 'text-green-600', bg: 'bg-green-50' },
-    { label: 'Resp. Promedio', value: `${avgResponseSec}s`, icon: '⚡', color: 'text-orange-600', bg: 'bg-orange-50' },
-  ]
+  // Filtered rows
+  const filtered = useMemo(() => rows.filter(r => {
+    const q = search.toLowerCase()
+    const matchSearch = !q ||
+      r.contact_id.toLowerCase().includes(q) ||
+      (r.contact_name || '').toLowerCase().includes(q) ||
+      (r.message || '').toLowerCase().includes(q)
+    const matchStatus = !filterStatus || r.status === filterStatus
+    const matchDate = !filterDate || r.created_at.startsWith(filterDate)
+    return matchSearch && matchStatus && matchDate
+  }), [rows, search, filterStatus, filterDate])
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <button onClick={load} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Instagram AI Agent</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Dr. Botero · Agente WhatsApp v2</p>
+        </div>
+        <button onClick={load} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors border border-gray-200 rounded-lg px-3 py-1.5">
           🔄 Actualizar
         </button>
       </div>
@@ -163,14 +198,84 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Mensajes Recientes</h2>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{rows.length} registros</span>
+      {/* n8n Errors */}
+      {errors.length > 0 && (
+        <div className="bg-white rounded-xl border border-red-100 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-red-100 flex items-center justify-between bg-red-50">
+            <h2 className="font-semibold text-red-800 flex items-center gap-2">
+              <span>⚠️</span> Errores n8n recientes
+              <span className="bg-red-200 text-red-800 text-xs px-2 py-0.5 rounded-full">{errors.length}</span>
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-red-50 bg-red-50/50">
+                  {['ID Ejecución', 'Inicio', 'Duración'].map(h => (
+                    <th key={h} className="px-4 py-2 text-left text-xs text-red-700 font-semibold">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {errors.slice(0, 10).map(e => {
+                  const duration = e.stoppedAt
+                    ? Math.round((new Date(e.stoppedAt).getTime() - new Date(e.startedAt).getTime()) / 1000) + 's'
+                    : '—'
+                  return (
+                    <tr key={e.id} className="border-b border-red-50">
+                      <td className="px-4 py-2 font-mono text-xs text-red-600">#{e.id}</td>
+                      <td className="px-4 py-2 text-gray-600 text-xs">
+                        {new Date(e.startedAt).toLocaleString('es', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-2 text-gray-500 text-xs">{duration}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
+      )}
+
+      {/* Messages Table with filters */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="font-semibold text-gray-900 mr-auto">Mensajes</h2>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{filtered.length} / {rows.length}</span>
+          </div>
+          {/* Filters */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="🔍 Buscar por nombre, ID o mensaje..."
+              className="flex-1 min-w-[200px] border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400 text-gray-900 placeholder-gray-400"
+            />
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 bg-white">
+              <option value="">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="processing">Procesando</option>
+              <option value="completed">Completado</option>
+              <option value="failed">Error</option>
+            </select>
+            <input
+              type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:border-indigo-400"
+            />
+            {(search || filterStatus || filterDate) && (
+              <button onClick={() => { setSearch(''); setFilterStatus(''); setFilterDate('') }}
+                className="text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg px-2 py-1.5">
+                ✕ Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+
         {loading ? (
           <div className="p-8 text-center text-gray-400">Cargando...</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">Sin resultados para los filtros seleccionados</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -182,14 +287,14 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => {
+                {filtered.slice(0, 200).map(r => {
                   const respTime = r.processed_at
                     ? Math.round((new Date(r.processed_at).getTime() - new Date(r.created_at).getTime()) / 1000) + 's'
                     : '—'
                   return (
                     <tr key={r.id} onClick={() => setSelected(r)} className="border-b border-gray-50 hover:bg-indigo-50/40 cursor-pointer transition-colors">
                       <td className="px-4 py-3 font-medium text-gray-900">{r.contact_name || 'Unknown'}</td>
-                      <td className="px-4 py-3 text-gray-400 font-mono text-xs">{r.contact_id.slice(0, 8)}...</td>
+                      <td className="px-4 py-3 text-gray-400 font-mono text-xs">{r.contact_id.slice(0, 10)}…</td>
                       <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{r.message}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[r.status] || STATUS_STYLES.pending}`}>
