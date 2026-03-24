@@ -75,14 +75,21 @@ export default function TestPage() {
       id: msgId, role: 'user', text, timestamp: new Date()
     }])
 
-    // Fire and forget to webhook
+    // Fire and forget to webhook — same payload format as GHL
     fetch(WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contact_id: contactId,
+        first_name: contactName.split(' ')[0],
+        last_name: contactName.split(' ').slice(1).join(' ') || '',
         full_name: contactName,
-        message: { body: text }
+        phone: '',
+        email: '',
+        contact_type: 'lead',
+        message: { type: 19, body: text },
+        triggerData: {},
+        customData: {}
       })
     }).catch(() => {})
 
