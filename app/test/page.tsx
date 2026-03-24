@@ -99,15 +99,19 @@ export default function TestPage() {
     await sendMessage(text, session.contactId, session.name)
   }
 
-  const handleStressTest = async () => {
-    if (!session || !input.trim()) return
-    const text = input.trim()
-    setInput('')
+  const [rapidMsgs, setRapidMsgs] = useState(['', '', ''])
+  const [showRapid, setShowRapid] = useState(false)
+
+  const handleRapidFire = async () => {
+    if (!session) return
+    const msgs = rapidMsgs.filter(m => m.trim())
+    if (msgs.length === 0) return
+    setShowRapid(false)
+    setRapidMsgs(['', '', ''])
     setSending(true)
-    // Send the same message 3 times rapidly (200ms apart)
-    for (let i = 0; i < 3; i++) {
-      await sendMessage(`[${i+1}/3] ${text}`, session.contactId, session.name)
-      await new Promise(r => setTimeout(r, 200))
+    for (const msg of msgs) {
+      await sendMessage(msg.trim(), session.contactId, session.name)
+      await new Promise(r => setTimeout(r, 250))
     }
   }
 
@@ -184,6 +188,22 @@ export default function TestPage() {
               <div ref={chatEndRef} />
             </div>
 
+            {showRapid && (
+              <div className="px-3 pt-3 pb-2 border-t border-amber-100 bg-amber-50 space-y-2">
+                <p className="text-xs font-medium text-amber-700">⚡ Ráfaga — escribe 3 mensajes distintos y se mandan con 250ms de diferencia:</p>
+                {rapidMsgs.map((m, i) => (
+                  <input key={i} type="text" value={m}
+                    onChange={e => setRapidMsgs(prev => prev.map((v, j) => j === i ? e.target.value : v))}
+                    placeholder={['Ej: Hola buenas tardes', 'Ej: Quiero info sobre rinoplastia', 'Ej: ¿Cuánto cuesta la consulta?'][i]}
+                    className="w-full bg-white border border-amber-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-amber-400"
+                  />
+                ))}
+                <button onClick={handleRapidFire} disabled={rapidMsgs.every(m => !m.trim())}
+                  className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-1.5 rounded-lg text-sm font-medium transition-colors">
+                  🚀 Enviar en ráfaga
+                </button>
+              </div>
+            )}
             <div className="p-3 border-t border-gray-100 flex gap-2 bg-white rounded-b-xl">
               <input
                 type="text"
@@ -194,10 +214,10 @@ export default function TestPage() {
                 disabled={sending}
                 className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
               />
-              <button onClick={handleStressTest} disabled={!input.trim()}
-                title="Envía este mensaje 3 veces seguidas (200ms) para probar la cola"
-                className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-colors">
-                ⚡×3
+              <button onClick={() => setShowRapid(v => !v)}
+                title="Envía 3 mensajes diferentes en ráfaga para probar la cola"
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${showRapid ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
+                ⚡ Ráfaga
               </button>
               <button onClick={handleSend} disabled={sending || !input.trim()}
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
