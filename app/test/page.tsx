@@ -100,10 +100,13 @@ export default function TestPage() {
   }
 
   const handleStressTest = async () => {
-    if (!session) return
+    if (!session || !input.trim()) return
+    const text = input.trim()
+    setInput('')
     setSending(true)
-    for (const msg of ['Hola', 'Quiero info sobre rinoplastia', '¿Cuánto cuesta?']) {
-      await sendMessage(msg, session.contactId, session.name)
+    // Send the same message 3 times rapidly (200ms apart)
+    for (let i = 0; i < 3; i++) {
+      await sendMessage(`[${i+1}/3] ${text}`, session.contactId, session.name)
       await new Promise(r => setTimeout(r, 200))
     }
   }
@@ -191,8 +194,8 @@ export default function TestPage() {
                 disabled={sending}
                 className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400"
               />
-              <button onClick={handleStressTest} disabled={sending}
-                title="Envía 3 mensajes rápido para probar la cola"
+              <button onClick={handleStressTest} disabled={!input.trim()}
+                title="Envía este mensaje 3 veces seguidas (200ms) para probar la cola"
                 className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-colors">
                 ⚡×3
               </button>
