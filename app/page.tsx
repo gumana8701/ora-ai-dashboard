@@ -7,11 +7,11 @@ import {
   Tooltip, ResponsiveContainer
 } from 'recharts'
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
-  processing: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
-  completed: 'bg-green-500/20 text-green-300 border border-green-500/30',
-  failed: 'bg-red-500/20 text-red-300 border border-red-500/30',
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+  processing: 'bg-blue-100 text-blue-800 border border-blue-200',
+  completed: 'bg-green-100 text-green-800 border border-green-200',
+  failed: 'bg-red-100 text-red-800 border border-red-200',
 }
 
 function ConversationModal({ contactId, contactName, onClose }: { contactId: string; contactName: string; onClose: () => void }) {
@@ -32,28 +32,28 @@ function ConversationModal({ contactId, contactName, onClose }: { contactId: str
   }, [contactId])
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div>
-            <h3 className="font-semibold">{contactName || 'Unknown'}</h3>
-            <p className="text-xs text-gray-400">{contactId}</p>
+            <h3 className="font-semibold text-gray-900">{contactName || 'Unknown'}</h3>
+            <p className="text-xs text-gray-400 font-mono">{contactId}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
           {loading ? (
-            <p className="text-center text-gray-400 text-sm">Cargando...</p>
+            <p className="text-center text-gray-400 text-sm py-8">Cargando...</p>
           ) : chats.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm">Sin conversaciones en chats</p>
+            <p className="text-center text-gray-400 text-sm py-8">Sin historial de conversación</p>
           ) : chats.map((c) => {
             const isHuman = c.message?.type === 'human'
             const content = c.message?.content || ''
             return (
               <div key={c.id} className={`flex ${isHuman ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${isHuman ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-700 text-gray-100 rounded-bl-sm'}`}>
+                <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm shadow-sm ${isHuman ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'}`}>
                   {content}
-                  <div className={`text-[10px] mt-1 ${isHuman ? 'text-blue-200' : 'text-gray-400'}`}>
+                  <div className={`text-[10px] mt-1 ${isHuman ? 'text-indigo-200' : 'text-gray-400'}`}>
                     {new Date(c.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
@@ -83,7 +83,6 @@ export default function DashboardPage() {
 
   useEffect(() => { load() }, [load])
 
-  // KPIs
   const today = new Date().toISOString().split('T')[0]
   const totalLeads = rows.filter(r => r.ai_response).length
   const totalConversations = new Set(rows.map(r => r.contact_id)).size
@@ -95,7 +94,6 @@ export default function DashboardPage() {
       }, 0) / completedWithTime.length)
     : 0
 
-  // Charts data
   const hourlyData = Array.from({ length: 24 }, (_, i) => ({
     hour: `${i}h`,
     messages: rows.filter(r => new Date(r.created_at).getHours() === i && r.created_at.startsWith(today)).length
@@ -111,17 +109,17 @@ export default function DashboardPage() {
   })
 
   const kpis = [
-    { label: 'Total Leads', value: totalLeads, icon: '🎯', color: 'text-orange-400' },
-    { label: 'Conversaciones', value: totalConversations, icon: '💬', color: 'text-blue-400' },
-    { label: 'Mensajes Hoy', value: todayMessages, icon: '📨', color: 'text-green-400' },
-    { label: 'Resp. Promedio', value: `${avgResponseSec}s`, icon: '⚡', color: 'text-purple-400' },
+    { label: 'Total Leads', value: totalLeads, icon: '🎯', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Conversaciones', value: totalConversations, icon: '💬', color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Mensajes Hoy', value: todayMessages, icon: '📨', color: 'text-green-600', bg: 'bg-green-50' },
+    { label: 'Resp. Promedio', value: `${avgResponseSec}s`, icon: '⚡', color: 'text-orange-600', bg: 'bg-orange-50' },
   ]
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <button onClick={load} className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <button onClick={load} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
           🔄 Actualizar
         </button>
       </div>
@@ -129,47 +127,47 @@ export default function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map(k => (
-          <div key={k.label} className="bg-gray-900 rounded-xl p-5 border border-gray-800">
-            <div className="text-2xl mb-1">{k.icon}</div>
+          <div key={k.label} className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+            <div className={`w-10 h-10 ${k.bg} rounded-xl flex items-center justify-center text-xl mb-3`}>{k.icon}</div>
             <div className={`text-3xl font-bold ${k.color}`}>{k.value}</div>
-            <div className="text-sm text-gray-400 mt-1">{k.label}</div>
+            <div className="text-sm text-gray-500 mt-1">{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-4">
-        <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-300 mb-4">Mensajes por hora (hoy)</h2>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">Mensajes por hora (hoy)</h2>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={hourlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#9ca3af' }} interval={3} />
-              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-              <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8 }} />
-              <Bar dataKey="messages" fill="#f97316" radius={[4, 4, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#6b7280' }} interval={3} />
+              <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
+              <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="messages" fill="#6366f1" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-300 mb-4">Mensajes últimos 7 días</h2>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">Mensajes últimos 7 días</h2>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={last7}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} />
-              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-              <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8 }} />
-              <Line type="monotone" dataKey="messages" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#6b7280' }} />
+              <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
+              <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12 }} />
+              <Line type="monotone" dataKey="messages" stroke="#6366f1" strokeWidth={2} dot={{ fill: '#6366f1' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Leads Table */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="font-semibold">Mensajes Recientes</h2>
-          <span className="text-xs text-gray-400">{rows.length} registros</span>
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Mensajes Recientes</h2>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{rows.length} registros</span>
         </div>
         {loading ? (
           <div className="p-8 text-center text-gray-400">Cargando...</div>
@@ -177,9 +175,9 @@ export default function DashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-800">
+                <tr className="border-b border-gray-100 bg-gray-50">
                   {['Contacto', 'ID', 'Mensaje', 'Estado', 'Fecha', 'Tiempo'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs text-gray-400 font-medium">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs text-gray-500 font-semibold uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -189,23 +187,19 @@ export default function DashboardPage() {
                     ? Math.round((new Date(r.processed_at).getTime() - new Date(r.created_at).getTime()) / 1000) + 's'
                     : '—'
                   return (
-                    <tr
-                      key={r.id}
-                      onClick={() => setSelected(r)}
-                      className="border-b border-gray-800/50 hover:bg-gray-800/50 cursor-pointer transition-colors"
-                    >
-                      <td className="px-4 py-3 font-medium">{r.contact_name || 'Unknown'}</td>
+                    <tr key={r.id} onClick={() => setSelected(r)} className="border-b border-gray-50 hover:bg-indigo-50/40 cursor-pointer transition-colors">
+                      <td className="px-4 py-3 font-medium text-gray-900">{r.contact_name || 'Unknown'}</td>
                       <td className="px-4 py-3 text-gray-400 font-mono text-xs">{r.contact_id.slice(0, 8)}...</td>
-                      <td className="px-4 py-3 text-gray-300 max-w-xs truncate">{r.message}</td>
+                      <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{r.message}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status] || STATUS_COLORS.pending}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[r.status] || STATUS_STYLES.pending}`}>
                           {r.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                         {new Date(r.created_at).toLocaleString('es', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="px-4 py-3 text-gray-400">{respTime}</td>
+                      <td className="px-4 py-3 text-gray-500">{respTime}</td>
                     </tr>
                   )
                 })}
