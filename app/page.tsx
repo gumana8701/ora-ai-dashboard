@@ -89,7 +89,7 @@ export default function DashboardPage() {
     setLoading(true)
     const [{ data: queueData }, errorsData] = await Promise.all([
       supabase.from('message_queue').select('*').order('created_at', { ascending: false }).limit(500),
-      fetch('https://n8n.daviddepablos.com/api/v1/executions?workflowId=H1DHC0NR1JrTgdTW&limit=50&status=error', {
+      fetch('https://n8n.daviddepablos.com/api/v1/executions?workflowId=ZFrGEnepFRlTi5hy&limit=50&status=error', {
         headers: { 'X-N8N-API-KEY': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMGFmMmZiZC02Y2NkLTQ3MzctYThlZS05MTkwYjUzMmFjODYiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZWIzNDA2MDItNjFmNS00MjJkLTkxYWEtOWRjMTM3MjJjMDU5IiwiaWF0IjoxNzc0Mjc3OTk1fQ.glLOJqVm59WZb3uU0cnx_3OXKRT8yDzqDkdHjjpUPlo' }
       }).then(r => r.ok ? r.json() : { data: [] }).catch(() => ({ data: [] }))
     ])
@@ -151,8 +151,8 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Instagram AI Agent</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Dr. Botero · Agente WhatsApp v2</p>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard WhatsApp AI Agent</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Satori IPS · [BETA] Agente WhatsApp 1era At.</p>
         </div>
         <button onClick={load} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors border border-gray-200 rounded-lg px-3 py-1.5">
           🔄 Actualizar
